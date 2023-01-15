@@ -4,9 +4,10 @@ open Excel.FinancialFunctions.Common
 open Excel.FinancialFunctions.DayCount
 
 module Bond =
+  open System
   
   let getPriceYieldFactors settl mat freq basis =
-    let dc = dayCount basis
+    let dc = getDayCountImpl basis
     let numOfCoup = dc.CoupNum settl mat freq
     let prevCoupDate = dc.CoupPCD settl mat freq
     let daysBetween = dc.DaysBetween prevCoupDate settl Numerator
@@ -15,20 +16,26 @@ module Bond =
     numOfCoup, prevCoupDate, daysBetween, coupDays, dsc
 
 
-  let price settl mat (rate : float) (yld : float) redemption (freq : float) basis =
-    let numOfCoup, _, daysBetween, coupDays, dsc = 
-      getPriceYieldFactors settl mat freq basis
-    
+  let price (settl : DateTime) (mat : DateTime) (rate : float) (yld : float) (redemption : float) (freq : float) (basis : DayCountBasis) =
+    let dayCountImpl = getDayCountImpl basis
+
+    let numOfCoupons = dayCountImpl.CoupNum settl mat freq |> int
+    let prevCouponDate = dayCountImpl.CoupPCD settl mat freq
+    let daysBetween = dayCountImpl.DaysBetween prevCouponDate settl Numerator
+    let couponDays = dayCountImpl.CoupDays settl mat freq
+    let dsc = couponDays - daysBetween
+
     let coupon = 100. * rate / freq
-    let accrInt = 100. * rate / freq * daysBetween / coupDays
+    let accrInt = 100. * rate / freq * daysBetween / couponDays
 
-    let pvFactor k = pow (1. + yld / freq) (k - 1. + dsc / coupDays)
-    let pvOfRedemption = redemption / pvFactor numOfCoup
+    let pvFactor k = pow (1. + yld / freq) (k - 1. + dsc / couponDays)
+    let pvOfRedemption = redemption / pvFactor numOfCoupons
 
-    let mutable pvOfCoupons = 0.
-    for k = 1 to int numOfCoup do pvOfCoupons <- pvOfCoupons + coupon / pvFactor (float k)
+    let pvOfCoupons = 
+      seq { 1 .. numOfCoupons}
+      |> Seq.map (fun k -> coupon / pvFactor (float k))
+      |> Seq.sum
 
-    if numOfCoup = 1. then
-      (redemption + coupon) / (1. + dsc / coupDays * yld / freq) - accrInt
-    else
-      pvOfRedemption + pvOfCoupons - accrInt
+    match numOfCoupons with
+    | 1 -> (redemption + coupon) / (1. + dsc / couponDays * yld / freq) - accrInt
+    | _ -> pvOfRedemption + pvOfCoupons - accrInt

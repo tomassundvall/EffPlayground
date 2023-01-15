@@ -298,7 +298,7 @@ module DayCount =
           changeMonth date months DayCountBasis.ActualActual returnLastDay     
     }
 
-  let dayCount = memorize (function
+  let getDayCountImpl = memorize (function
     | DayCountBasis.UsPsa30_360                 -> UsPsa30_360 ()
     | DayCountBasis.ActualActual                -> ActualActual ()
     | DayCountBasis.Actual360                   -> Actual360 ()
