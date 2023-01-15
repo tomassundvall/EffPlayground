@@ -2,13 +2,12 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <GenerateProgramFile>false</GenerateProgramFile>
+    <GenerateProgramFile>true</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Tests.fs" />
     <Compile Include="Common.Tests.fs" />
     <Compile Include="DayCount.Tests.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Bond.Tests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
