@@ -114,16 +114,10 @@ module DayCount =
     iter mat mat
 
 
-
-  let findPcdNcd startDate endDate numMonths basis returnsLastMonth =
-    let pcd, ncd, _ = datesAggregate1 startDate endDate numMonths basis noActionDates 0. returnsLastMonth
-    pcd, ncd
-
-
   let findCouponDates settl (Date(my, mm, md) as mat) freq basis =
     let endMonth = lastDayOfMonth my mm md
-    let numMonths = - freq2months freq
-    findPcdNcd mat settl numMonths basis endMonth
+    let numMonths = freq2months freq
+    findPrevAndNextCoupDays settl mat numMonths endMonth
 
 
   let findPreviousCouponDate settl mat freq basis = 
