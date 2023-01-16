@@ -67,15 +67,18 @@ module DayCount =
     dateDiff360 sd1 sm1 sy1 ed1 em1 ey1 
 
 
+  // determines the length of the coupon
   let freq2months (freq : float) = 12 / int freq
 
 
   let isLastDayOfMonthBasis y m d basis = lastDayOfMonth y m d || (d = 30 && basis = DayCountBasis.UsPsa30_360)
 
 
-  let changeMonth (Date(y, m, d) as orgDate) numMonths _ returnLastDay =
+  let changeMonth (Date(y, m, d) as orgDate) numMonths returnLastDay =
     let getLastDay y m = DateTime.DaysInMonth(y, m)
+
     let (Date(year, month, _) as newDate) = orgDate.AddMonths(numMonths)
+    
     if returnLastDay then date year month (getLastDay year month) else newDate
 
 
@@ -88,11 +91,28 @@ module DayCount =
       let stop = if numMonths > 0 then frontDate >= endDate else frontDate <= endDate
       if stop then frontDate, trailingDate, acc
       else
+        // printfn "FROM: trailing: %A, front: %A, acc: %A" trailingDate frontDate acc
         let trailingDate = frontDate
-        let frontDate = changeMonth frontDate numMonths basis returnLastMonth
+        let frontDate = changeMonth frontDate numMonths returnLastMonth
         let acc = acc + f frontDate trailingDate
+        // printfn "TO: trailing: %A, front: %A, acc: %A" trailingDate frontDate acc
         iter frontDate trailingDate acc
     iter startDate endDate acc
+
+
+  let findPrevAndNextCoupDays (settl : DateTime) (mat : DateTime) couponIntervalLength returnLastMonth =
+    if couponIntervalLength < 1 then throw "A coupon interval must be at least one month"
+
+    let rec iter periodStart periodEnd =
+      match periodStart <= settl with
+      | true -> periodStart, periodEnd
+      | false ->
+        let nextPeriodEnd = periodStart
+        let nextPeriodStart = changeMonth periodStart (-couponIntervalLength) returnLastMonth
+        iter nextPeriodStart nextPeriodEnd
+    
+    iter mat mat
+
 
 
   let findPcdNcd startDate endDate numMonths basis returnsLastMonth =
@@ -114,9 +134,10 @@ module DayCount =
     findCouponDates settl mat freq basis |> snd 
 
 
-  let numberOfCoupons settl (Date(my, mm, md) as mat) freq basis =
-    let (Date(pcy, pcm, _) as _) = findPreviousCouponDate settl mat freq basis
-    let months = float ((my - pcy)*12 + (mm - pcm))
+  let numberOfCoupons settl mat freq basis =
+    let prevCouponDate = findPreviousCouponDate settl mat freq basis
+    let months = monthsBetween prevCouponDate mat |> float
+    
     months * freq / 12.
 
 
@@ -163,7 +184,7 @@ module DayCount =
           360.
 
         member _.ChangeMonth date months returnLastDay =
-          changeMonth date months DayCountBasis.UsPsa30_360 returnLastDay
+          changeMonth date months returnLastDay
     }
 
   let Europ30_360 () =
@@ -194,7 +215,7 @@ module DayCount =
           360.
 
         member _.ChangeMonth date months returnLastDay =
-          changeMonth date months DayCountBasis.Europ30_360 returnLastDay
+          changeMonth date months returnLastDay
     }
 
   let Actual360 () =
@@ -227,7 +248,7 @@ module DayCount =
           360.
 
         member _.ChangeMonth date months returnLastDay =
-          changeMonth date months DayCountBasis.Actual360 returnLastDay               
+          changeMonth date months returnLastDay               
     }
 
   let Actual365 () =
@@ -260,7 +281,7 @@ module DayCount =
           365.
 
         member _.ChangeMonth date months returnLastDay =
-          changeMonth date months DayCountBasis.Actual365 returnLastDay              
+          changeMonth date months returnLastDay              
     }
 
   let ActualActual () =
@@ -295,7 +316,7 @@ module DayCount =
           elif considerAsBisestile issue settl then 366. else 365.                    
 
         member _.ChangeMonth date months returnLastDay =
-          changeMonth date months DayCountBasis.ActualActual returnLastDay     
+          changeMonth date months returnLastDay     
     }
 
   let getDayCountImpl = memorize (function
